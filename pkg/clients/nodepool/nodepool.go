@@ -27,6 +27,7 @@ import (
 	container "google.golang.org/api/container/v1"
 
 	"github.com/crossplane/crossplane-runtime/pkg/errors"
+	"github.com/davecgh/go-spew/spew"
 
 	"github.com/crossplane-contrib/provider-gcp/apis/container/v1beta1"
 	"github.com/crossplane-contrib/provider-gcp/apis/container/v1beta2"
@@ -427,6 +428,7 @@ type UpdateFn func(context.Context, *container.Service, string) (*container.Oper
 // IsUpToDate checks whether current state is up-to-date compared to the given
 // set of parameters.
 func IsUpToDate(name string, in *v1beta1.NodePoolParameters, observed *container.NodePool) (bool, UpdateFn, error) {
+	fmt.Println("DEBUG1")
 	generated, err := copystructure.Copy(observed)
 	if err != nil {
 		return true, noOpUpdate, errors.Wrap(err, errCheckUpToDate)
@@ -435,11 +437,19 @@ func IsUpToDate(name string, in *v1beta1.NodePoolParameters, observed *container
 	if !ok {
 		return true, noOpUpdate, errors.New(errCheckUpToDate)
 	}
+	fmt.Println("generated")
+	spew.Dump(generated)
+	fmt.Println("desired")
+	spew.Dump(desired)
 	GenerateNodePool(name, *in, desired)
+	fmt.Println("desired2")
+	spew.Dump(desired)
 	if !cmp.Equal(desired.Autoscaling, observed.Autoscaling, cmpopts.EquateEmpty()) {
+		fmt.Println("newAutoscalingUpdateFn")
 		return false, newAutoscalingUpdateFn(in.Autoscaling), nil
 	}
 	if !cmp.Equal(desired.Management, observed.Management, cmpopts.EquateEmpty()) {
+		fmt.Println("newManagementUpdateFn")
 		return false, newManagementUpdateFn(in.Management), nil
 	}
 
@@ -450,8 +460,10 @@ func IsUpToDate(name string, in *v1beta1.NodePoolParameters, observed *container
 	}), cmpopts.IgnoreMapEntries(func(key, _ string) bool {
 		return key == runtimeKey
 	}), cmp.Comparer(strings.EqualFold)) {
+		fmt.Println("newGeneralUpdateFn")
 		return false, newGeneralUpdateFn(in), nil
 	}
+	fmt.Println("noOpUpdate")
 	return true, noOpUpdate, nil
 }
 
